@@ -1,0 +1,19 @@
+# Rust and Tauri
+app/target/
+app/gen/schemas/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.complexipy_cache/
+.ruff_cache/
+
+# Local to each computer: the list of talks, its lock and the Windows shortcut
+talks.json
+.talks.lock
+*.lnk
+
+# Documentation site (mkdocs build)
+site/

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ManimRS Studio",
+  "identifier": "dev.manimrs.studio",
+  "build": {
+    "frontendDist": "ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "ManimRS Studio",
+        "theme": "Light",
+        "dragDropEnabled": false,
+        "backgroundColor": "#f6f6f3",
+        "width": 1560,
+        "height": 940,
+        "minWidth": 1100,
+        "minHeight": 660,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob: http://127.0.0.1:*",
+        "media-src": "'self' http://127.0.0.1:*",
+        "connect-src": "ipc: http://ipc.localhost",
+        "font-src": "'self' data:",
+        "object-src": "'none'",
+        "frame-src": "'none'",
+        "base-uri": "'none'",
+        "form-action": "'none'"
+      },
+      "freezePrototype": true
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"]
+  }
+}

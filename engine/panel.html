@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slide Studio</title>
+<style>
+:root {
+  --canvas: #faf9f5; --surface: #f5f4ed; --sunken: #f0eee6; --field: #ffffff; --ink: #141413; --ink-2: #5e5d59;
+  --border: #e6e4db; --accent: #c6613f; --action: #b95a38; --selected: #ebe9df;
+  --ok: #2f6b45; --ok-soft: rgb(47 107 69 / .1); --warn: #8a5a0b; --warn-soft: rgb(138 90 11 / .1);
+  --info: #2d5fa8; --info-soft: rgb(45 95 168 / .1); --ink-3: #8f8d85; --screen: #141413;
+  --shadow: 0 1px 2px rgb(20 20 19 / .06), 0 12px 32px -8px rgb(20 20 19 / .18);
+  --radius: 12px;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--canvas); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  display: grid; grid-template-rows: auto 1fr auto;
+}
+button, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .5; }
+
+/* ── top bar ── */
+header {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 18px; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.brand { font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
+.brand svg { color: var(--accent); }
+select { background: var(--field); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; max-width: 260px; }
+.summary { color: var(--ink-2); font-size: 13px; }
+.spacer { flex: 1; }
+.btn {
+  border: 1px solid var(--border); background: var(--field); border-radius: 8px;
+  padding: 6px 12px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.btn:hover:not(:disabled) { background: var(--sunken); }
+.btn.primary { background: var(--action); border-color: var(--action); color: #fff; font-weight: 600; }
+.btn.primary:hover:not(:disabled) { background: #a84f30; }
+.segment { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.segment button { border: 0; background: var(--field); padding: 6px 10px; }
+.segment button + button { border-left: 1px solid var(--border); }
+.segment button.on { background: var(--ink); color: var(--field); }
+.menu { position: relative; }
+.menu-list {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 240px;
+  background: var(--field); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: var(--shadow); padding: 6px; display: none;
+}
+.menu.open .menu-list { display: block; }
+.menu-list button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 6px; }
+.menu-list button:hover { background: var(--sunken); }
+.menu-list small { display: block; color: var(--ink-2); }
+
+/* ── body ── */
+main { display: grid; grid-template-columns: 370px 1fr; min-height: 0; }
+aside { border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; background: var(--surface); }
+.filters { display: flex; gap: 2px; padding: 10px 8px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.filters button { border: 1px solid transparent; background: none; border-radius: 999px; padding: 3px 8px; color: var(--ink-2); font-size: 12.5px; }
+.filters button.on { background: var(--sunken); border-color: var(--border); color: var(--ink); }
+.filters b { font-weight: 600; margin-left: 4px; }
+#list { overflow-y: auto; padding: 4px 6px 24px; flex: 1; }
+.group { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); padding: 14px 8px 4px; font-weight: 600; }
+.row {
+  display: grid; grid-template-columns: 64px 26px 1fr auto; align-items: center; gap: 8px;
+  width: 100%; border: 0; background: none; text-align: left; padding: 5px 6px; border-radius: 8px;
+}
+.row:hover:not(:disabled) { background: var(--sunken); }
+.row.active { background: var(--selected); }
+.row.out { opacity: .45; }
+.thumb { width: 64px; aspect-ratio: 16 / 9; border-radius: 4px; background: var(--sunken); overflow: hidden; display: block; border: 1px solid var(--border); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.num { color: var(--ink-2); font-variant-numeric: tabular-nums; text-align: right; font-size: 13px; }
+.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.marks { display: flex; gap: 6px; align-items: center; }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none; }
+.s-up_to_date { background: var(--ok); }
+.s-new { background: transparent; border: 1.5px solid var(--ink-3); }
+.s-changed { background: var(--warn); }
+.s-transition { background: transparent; border: 2px solid var(--warn); }
+.s-shared { background: var(--info); }
+.s-resolution { background: transparent; border: 2px solid var(--info); }
+.s-out { background: var(--border); }
+.rev { font-size: 12px; width: 14px; text-align: center; }
+.rev.approved { color: var(--ok); }
+.rev.changes { color: var(--accent); }
+
+/* ── viewer ── */
+#viewer { overflow-y: auto; padding: 20px 28px 40px; min-width: 0; }
+.empty { color: var(--ink-2); padding: 60px 0; text-align: center; }
+.title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.title h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; display: flex; gap: 10px; }
+.title .pos { color: var(--ink-2); font-weight: 500; }
+.subtitle { color: var(--ink-2); font-size: 13px; margin-bottom: 14px; display: flex; gap: 14px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 9px; border-radius: 999px; background: var(--sunken); color: var(--ink-2); }
+.chip.up_to_date, .chip.approved { background: var(--ok-soft); color: var(--ok); }
+.chip.changed, .chip.transition, .chip.changes { background: var(--warn-soft); color: var(--warn); }
+.chip.shared, .chip.resolution { background: var(--info-soft); color: var(--info); }
+.screen {
+  position: relative; background: var(--screen); border-radius: var(--radius); overflow: hidden;
+  aspect-ratio: 16 / 9; box-shadow: var(--shadow); margin: 0 auto; width: min(100%, calc(56vh * 16 / 9));
+}
+.screen video { width: 100%; height: 100%; display: block; object-fit: contain; }
+.screen .note { position: absolute; inset: 0; display: grid; place-items: center; color: #c2c0b6; text-align: center; padding: 20px; }
+.controls { display: flex; align-items: center; gap: 8px; margin: 10px 0 18px; flex-wrap: wrap; }
+.pauses { color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.card { background: var(--field); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.card h2 { font-size: 13px; margin: 0 0 8px; color: var(--ink-2); font-weight: 600; display: flex; gap: 8px; }
+.card p { margin: 0 0 8px; }
+.link {
+  border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline;
+  text-underline-offset: 2px; font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 12.5px; word-break: break-all; text-align: left;
+}
+.buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+textarea { width: 100%; min-height: 92px; resize: vertical; border: 1px solid var(--border); background: var(--canvas); border-radius: 8px; padding: 8px 10px; }
+textarea:focus, select:focus, .btn:focus-visible, .row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ── jobs ── */
+footer {
+  border-top: 1px solid var(--border); background: var(--surface); padding: 8px 18px;
+  display: flex; align-items: center; gap: 12px; min-height: 44px; flex-wrap: wrap;
+}
+#job { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+#job .text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#job .detail { color: var(--ink-2); margin-left: 12px; }
+.spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent); animation: spin .8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#log {
+  position: fixed; left: 18px; right: 18px; bottom: 54px; max-height: 40vh; overflow: auto;
+  background: var(--field); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 12px 14px; display: none; z-index: 30;
+  font: 12px/1.5 ui-monospace, "Cascadia Code", Consolas, monospace; white-space: pre-wrap;
+}
+#log.open { display: block; }
+#log h3 { font: 600 13px system-ui, sans-serif; margin: 10px 0 4px; }
+#log h3:first-child { margin-top: 0; }
+#log h3 span { color: var(--ink-2); font-weight: 400; margin-left: 8px; }
+#toast {
+  position: fixed; right: 18px; bottom: 60px; background: var(--ink); color: var(--surface);
+  padding: 10px 14px; border-radius: 10px; box-shadow: var(--shadow); display: none; z-index: 40; max-width: 420px;
+}
+#toast.visible { display: flex; gap: 10px; align-items: center; }
+#toast button { background: none; border: 1px solid currentColor; border-radius: 6px; color: inherit; padding: 2px 8px; }
+kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--sunken); }
+.hint { color: var(--ink-2); font-size: 12px; display: inline-flex; gap: 14px; }
+
+@media (max-width: 900px) {
+  body { grid-template-rows: auto auto auto; }
+  main { grid-template-columns: 1fr; }
+  aside { max-height: 45vh; border-right: 0; border-bottom: 1px solid var(--border); }
+  #viewer { padding: 16px; }
+  .cards { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M10 8.5l4 1.5-4 1.5z"/></svg>
+    Slide Studio
+  </div>
+  <select id="talk" aria-label="Talk"></select>
+  <span class="summary" id="summary"></span>
+  <span class="spacer"></span>
+  <div class="segment" id="quality" role="group" aria-label="Render resolution" title="Render resolution">
+    <button data-q="480p" title="Quick to review">480p</button>
+    <button data-q="720p">720p</button>
+    <button data-q="1080p" title="The one to present">1080p</button>
+  </div>
+  <button class="btn" id="copy-all" hidden></button>
+  <button class="btn primary" id="pending">Render pending</button>
+  <button class="btn" id="present">▶ Present</button>
+  <div class="menu" id="export-menu">
+    <button class="btn" id="export">Export ▾</button>
+    <div class="menu-list">
+      <button data-f="html">HTML folder (.zip)<small>Opens in any browser, nothing to install</small></button>
+      <button data-f="pdf">PDF (.pdf)<small>One page for each pause, at its end</small></button>
+      <button data-f="folder">Open the exports folder</button>
+      <button data-f="all">Render the whole talk<small>Slow: every slide, at the chosen resolution</small></button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <aside>
+    <div class="filters" id="filters"></div>
+    <div id="list" role="listbox" aria-label="Slides"></div>
+  </aside>
+  <section id="viewer"><div class="empty">Loading…</div></section>
+</main>
+
+<footer>
+  <div id="job"><span class="detail">No jobs running</span></div>
+  <button class="btn" id="show-log">Log</button>
+  <span class="hint"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>Space</kbd> play</span></span>
+</footer>
+<div id="log"></div>
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const load = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+const save = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+
+async function api(route, body) {
+  const r = await fetch(route, body ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)} : {});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+const PENDING = new Set(['new', 'changed', 'transition', 'resolution']);
+const EXPLAIN = {
+  new: 'Not rendered yet',
+  changed: 'Its code changed since the last render',
+  transition: s => `The previous slide (${s.previous || 'none'}) changed, so its entrance is outdated`,
+  shared: 'Shared code (style, components…) changed since its render, it may look different',
+  resolution: s => `It is at ${s.quality} and you want it at ${s.resolution}`,
+  up_to_date: 'Up to date with its code',
+  out: 'It is commented out in main.py, so it is not in the talk',
+};
+const REVIEW = {
+  approved: ['✓', 'approved', 'Approved'],
+  changes: ['✎', 'changes', 'Changes requested'],
+  to_review: ['•', '', 'To review'],
+};
+const FILTERS = [
+  ['all', 'All', s => true],
+  ['pending', 'Pending', s => s.active && PENDING.has(s.status)],
+  ['review', 'To review', s => s.active && s.status !== 'new' && !['approved', 'changes'].includes(s.review.status)],
+];
+
+const link = new URLSearchParams(location.search);
+let talk = link.get('talk') || load('studio.talk', '');
+if (link.get('talk') && link.get('slide')) save('studio.sel.' + link.get('talk'), link.get('slide'));
+let quality = ['480p', '720p', '1080p'].includes(load('studio.quality', '')) ? load('studio.quality', '') : '1080p';
+let filter = 'all';
+let data = null, listSig = '', sel = null, part = 0, jobsBefore = {};
+
+const current = () => data?.slides.find(s => s.active && s.name === sel);
+
+// ── loading ──
+async function start() {
+  const list = await api('/api/talks');
+  if (!list.some(t => t.id === talk)) talk = list[0]?.id;
+  $('#talk').innerHTML = list.map(t => `<option value="${esc(t.id)}">${esc(t.title)}</option>`).join('');
+  $('#talk').value = talk;
+  paintQuality();
+  await refresh();
+  schedule();
+}
+
+let clock = null;
+function schedule() {
+  clearTimeout(clock);
+  const busy = data?.jobs.some(j => j.status === 'running' || j.status === 'queued');
+  clock = setTimeout(async () => { await refresh().catch(() => {}); schedule(); }, busy ? 1500 : 6000);
+}
+
+async function refresh() {
+  data = await api('/api/status?talk=' + encodeURIComponent(talk));
+  if (!sel || !current()) {
+    const stored = load('studio.sel.' + talk, '');
+    const actives = data.slides.filter(s => s.active);
+    sel = (actives.find(s => s.name === stored) || actives[0])?.name ?? null;
+    part = 0;
+    paintViewer(true);
+  } else {
+    paintViewer(false);
+  }
+  const sig = JSON.stringify([data.slides.map(s => [s.name, s.status, s.thumbnail, s.review.status]), filter, sel]);
+  if (sig !== listSig) { listSig = sig; paintList(); }
+  paintHeader();
+  paintJobs();
+}
+
+// ── header ──
+function paintQuality() {
+  document.querySelectorAll('#quality button').forEach(b => b.classList.toggle('on', b.dataset.q === quality));
+}
+
+function paintHeader() {
+  const actives = data.slides.filter(s => s.active);
+  const count = f => actives.filter(f).length;
+  const pend = count(s => PENDING.has(s.status));
+  const upToDate = count(s => s.status === 'up_to_date');
+  const changes = count(s => s.review.status === 'changes');
+  $('#summary').textContent = `${upToDate} of ${actives.length} up to date, ${pend} to render`;
+  const bp = $('#pending');
+  bp.textContent = pend ? `Render ${pend} pending` : 'Everything rendered';
+  bp.disabled = !pend;
+  const bc = $('#copy-all');
+  bc.hidden = !changes;
+  bc.textContent = `✎ Copy for Claude (${changes})`;
+  bc.title = 'Copies a request for Claude to apply all the noted changes';
+}
+
+// ── list ──
+function paintList() {
+  $('#filters').innerHTML = FILTERS.map(([id, name, f]) =>
+    `<button data-f="${id}" class="${id === filter ? 'on' : ''}">${name}<b>${data.slides.filter(f).length}</b></button>`).join('');
+  const test = FILTERS.find(f => f[0] === filter)[2];
+  let html = '', group = null;
+  for (const s of data.slides.filter(test)) {
+    if (s.group !== group) {
+      group = s.group;
+      if (group) html += `<div class="group">${esc(group)}</div>`;
+    }
+    const rev = REVIEW[s.review.status];
+    html += `<button class="row ${s.active && s.name === sel ? 'active' : ''} ${s.active ? '' : 'out'}"
+      ${s.active ? `data-k="${esc(s.name)}"` : 'disabled'} role="option" title="${esc(s.label)}">
+      <span class="thumb">${s.thumbnail ? `<img src="${esc(s.thumbnail)}" loading="lazy" alt="">` : ''}</span>
+      <span class="num">${s.pos ?? '–'}</span>
+      <span class="name">${esc(s.name)}</span>
+      <span class="marks"><span class="rev ${rev ? rev[1] : ''}">${rev ? rev[0] : ''}</span><span class="dot s-${s.status}"></span></span>
+    </button>`;
+  }
+  $('#list').innerHTML = html || '<div class="empty">Nothing in this filter</div>';
+  $('#list .row.active')?.scrollIntoView({block: 'nearest'});
+}
+
+function select(name) {
+  if (!name || name === sel) return;
+  sel = name; part = 0;
+  save('studio.sel.' + talk, sel);
+  document.querySelectorAll('.row').forEach(r => r.classList.toggle('active', r.dataset.k === sel));
+  $('#list .row.active')?.scrollIntoView({block: 'nearest'});
+  listSig = '';
+  paintViewer(true);
+}
+
+// ── viewer ──
+function paintViewer(fresh) {
+  const s = current();
+  if (!s) { $('#viewer').innerHTML = '<div class="empty">Pick a slide</div>'; return; }
+  if (fresh || !$('#viewer video, #viewer .screen')) {
+    $('#viewer').innerHTML = `
+      <div class="title"><h1><span class="pos">${s.pos}</span><span id="v-name"></span></h1><span id="v-chips"></span></div>
+      <div class="subtitle" id="v-sub"></div>
+      <div class="screen" id="screen"><video id="video" playsinline muted autoplay></video><div class="note" id="v-note" hidden></div></div>
+      <div class="controls">
+        <button class="btn" id="p-prev" aria-label="Previous pause">‹</button>
+        <span class="pauses" id="v-pauses"></span>
+        <button class="btn" id="p-next" aria-label="Next pause">›</button>
+        <button class="btn" id="p-again">↻ From the start</button>
+        <span class="spacer"></span>
+        <button class="btn primary" id="b-render"></button>
+        <button class="btn" id="b-present">▶ Present from here</button>
+      </div>
+      <div class="cards">
+        <div class="card">
+          <h2>Status</h2>
+          <p id="v-status"></p>
+          <p class="hint" id="v-rendered"></p>
+          <p>Code: <button class="link" id="b-code" title="Open in VS Code"></button></p>
+        </div>
+        <div class="card">
+          <h2>Review <span id="v-review"></span></h2>
+          <textarea id="note" placeholder="What would you change? Write it as you would tell Claude: “make the title bigger”, “remove the second sentence”…"></textarea>
+          <div class="buttons">
+            <button class="btn" id="b-approve">✓ Approve</button>
+            <button class="btn" id="b-changes">✎ Request changes</button>
+            <button class="btn" id="b-copy" title="Copies the request to paste it in Claude Code">Copy for Claude</button>
+          </div>
+        </div>
+      </div>`;
+    $('#note').value = s.review.note || '';
+    $('#video').addEventListener('ended', () => {
+      if (part < (current()?.parts.length ?? 0) - 1) { part++; loadVideo(true); }
+    });
+  }
+  $('#v-name').textContent = s.name;
+  const rev = REVIEW[s.review.status];
+  $('#v-chips').innerHTML = `<span class="chip ${s.status}"><span class="dot s-${s.status}"></span>${esc(s.label)}</span>
+    ${s.quality ? `<span class="chip">${esc(s.quality)}</span>` : ''}
+    ${rev ? `<span class="chip ${rev[1]}">${rev[2]}</span>` : ''}`;
+  $('#v-sub').innerHTML = [s.group, s.method].filter(Boolean).map(t => `<span>${esc(t)}</span>`).join('');
+  const e = EXPLAIN[s.status];
+  $('#v-status').textContent = typeof e === 'function' ? e(s) : e;
+  $('#v-rendered').textContent = s.rendered_at ? `Rendered ${new Date(s.rendered_at).toLocaleString('en')} at ${s.quality}` : '';
+  $('#b-code').textContent = s.file;
+  $('#v-review').textContent = s.review.date ? new Date(s.review.date).toLocaleDateString('en') : '';
+  $('#b-render').textContent = s.status === 'new' ? 'Render' : 'Render again';
+  $('#b-present').disabled = !s.parts.length;
+  loadVideo(false);
+}
+
+function loadVideo(play) {
+  const s = current(), v = $('#video'), note = $('#v-note');
+  if (!s || !v) return;
+  if (!s.parts.length) {
+    v.removeAttribute('src'); v.load(); note.hidden = false;
+    note.innerHTML = 'No video yet<br>Press “Render” (at 480p it takes a few seconds)';
+    $('#v-pauses').textContent = '';
+    $('#p-prev').disabled = $('#p-next').disabled = $('#p-again').disabled = true;
+    return;
+  }
+  note.hidden = true;
+  part = Math.min(part, s.parts.length - 1);
+  const p = s.parts[part];
+  if (v.getAttribute('src') !== p.url) { v.src = p.url; play = true; }
+  v.loop = p.loop;
+  if (play) v.play().catch(() => {});
+  $('#v-pauses').textContent = `Pause ${part + 1} of ${s.parts.length}${p.loop ? ', looping' : ''}`;
+  $('#p-prev').disabled = part === 0;
+  $('#p-next').disabled = part >= s.parts.length - 1;
+  $('#p-again').disabled = false;
+}
+
+// ── jobs ──
+function paintJobs() {
+  const js = data.jobs;
+  const live = js.find(j => j.status === 'running');
+  const queued = js.filter(j => j.status === 'queued').length;
+  const last = [...js].reverse().find(j => ['ok', 'error', 'cancelled'].includes(j.status));
+  let html;
+  if (live) {
+    const line = [...live.log].reverse().find(l => l.trim()) || 'Starting…';
+    html = `<span class="spinner"></span><span class="text"><b>${esc(live.title)}</b><span class="detail">${esc(line)}</span>${queued ? `<span class="detail">${queued} queued</span>` : ''}</span>
+      <button class="btn" data-cancel="${live.id}">Cancel</button>`;
+  } else if (last) {
+    const mark = {ok: '✓', error: '✗', cancelled: '–'}[last.status];
+    const line = [...last.log].reverse().find(l => l.trim()) || '';
+    html = `<span>${mark}</span><span class="text"><b>${esc(last.title)}</b><span class="detail">${esc(line)}</span></span>`;
+  } else {
+    html = '<span class="detail">No jobs running</span>';
+  }
+  $('#job').innerHTML = html;
+  if ($('#log').classList.contains('open')) paintLog();
+  for (const j of js) {
+    const before = jobsBefore[j.id];
+    if (before && before !== j.status && j.status === 'ok') toast(`Done: ${j.title}`, j.title.startsWith('Export') ? ['Open folder', () => api('/api/open', {talk: j.talk, what: 'exported'})] : null);
+    if (before && before !== j.status && j.status === 'error') toast(`Failed: ${j.title}, see the log`);
+    jobsBefore[j.id] = j.status;
+  }
+}
+
+function paintLog() {
+  const js = [...data.jobs].reverse();
+  $('#log').innerHTML = js.length
+    ? js.map(j => `<h3>${esc(j.title)}<span>${esc(j.status)}</span></h3>${esc(j.log.join('\n'))}`).join('')
+    : 'No jobs yet';
+}
+
+let toastClock = null;
+function toast(text, action) {
+  const t = $('#toast');
+  t.innerHTML = `<span>${esc(text)}</span>${action ? `<button>${esc(action[0])}</button>` : ''}`;
+  if (action) t.querySelector('button').onclick = action[1];
+  t.classList.add('visible');
+  clearTimeout(toastClock);
+  toastClock = setTimeout(() => t.classList.remove('visible'), action ? 9000 : 4000);
+}
+
+async function act(promise, text) {
+  try { await promise; if (text) toast(text); await refresh(); schedule(); }
+  catch (e) { toast(e.message); }
+}
+
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const t = document.createElement('textarea'); t.value = text; document.body.append(t);
+    t.select(); document.execCommand('copy'); t.remove();
+  }
+  toast('Copied, paste it in the Claude chat');
+}
+
+// ── events ──
+$('#talk').onchange = e => {
+  talk = e.target.value; save('studio.talk', talk);
+  sel = null; listSig = ''; filter = 'all'; act(Promise.resolve());
+};
+$('#quality').onclick = e => {
+  const q = e.target.closest('button')?.dataset.q; if (!q) return;
+  quality = q; save('studio.quality', q); paintQuality();
+};
+$('#filters').onclick = e => {
+  const f = e.target.closest('button')?.dataset.f; if (!f) return;
+  filter = f; listSig = ''; refresh();
+};
+$('#list').onclick = e => select(e.target.closest('.row')?.dataset.k);
+$('#pending').onclick = () => act(api('/api/render', {talk, what: 'pending', quality}), 'Queued: render the pending slides');
+$('#present').onclick = () => act(api('/api/present', {talk}), 'Opening the presenter…');
+$('#copy-all').onclick = () => copy(`/slides ${talk}: apply the changes requested in the panel`);
+$('#export').onclick = e => { e.stopPropagation(); $('#export-menu').classList.toggle('open'); };
+document.addEventListener('click', () => $('#export-menu').classList.remove('open'));
+$('#export-menu .menu-list').onclick = e => {
+  const f = e.target.closest('button')?.dataset.f; if (!f) return;
+  if (f === 'folder') return act(api('/api/open', {talk, what: 'exported'}));
+  if (f === 'all') {
+    if (!confirm(`Render all ${data.slides.filter(s => s.active).length} slides at ${quality}? It can take a long time`)) return;
+    return act(api('/api/render', {talk, what: 'all', quality}), 'Queued: the whole talk');
+  }
+  act(api('/api/export', {talk, format: f}), 'Queued: export');
+};
+$('#viewer').onclick = e => {
+  const id = e.target.closest('button')?.id, s = current();
+  if (!id || !s) return;
+  const note = $('#note')?.value.trim() ?? '';
+  const askNote = () => { $('#note').focus(); toast('First write what you want to change'); };
+  const actions = {
+    'p-prev': () => { part--; loadVideo(true); },
+    'p-next': () => { part++; loadVideo(true); },
+    'p-again': () => { part = 0; loadVideo(true); const v = $('#video'); v.currentTime = 0; v.play().catch(() => {}); },
+    'b-render': () => act(api('/api/render', {talk, what: [s.name], quality}), `Queued: ${s.name}`),
+    'b-present': () => act(api('/api/present', {talk, start: s.name}), 'Opening the presenter…'),
+    'b-code': () => act(api('/api/open', {talk, name: s.name})),
+    'b-approve': () => act(api('/api/review', {talk, name: s.name, status: 'approved', note}), 'Approved'),
+    'b-changes': () => note
+      ? act(api('/api/review', {talk, name: s.name, status: 'changes', note}), 'Noted, copy it for Claude whenever you want')
+      : askNote(),
+    'b-copy': () => note ? copy(`/slides ${talk} ${s.name}: ${note}`) : askNote(),
+  };
+  actions[id]?.();
+};
+$('#job').onclick = e => {
+  const id = e.target.closest('[data-cancel]')?.dataset.cancel;
+  if (id) act(api('/api/cancel', {id}), 'Cancelling…');
+};
+$('#show-log').onclick = e => {
+  e.stopPropagation();
+  $('#log').classList.toggle('open');
+  if ($('#log').classList.contains('open')) paintLog();
+};
+document.addEventListener('keydown', e => {
+  if (e.target.matches('textarea, select, input')) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const rows = [...document.querySelectorAll('.row[data-k]')];
+    const i = rows.findIndex(r => r.dataset.k === sel);
+    select(rows[Math.max(0, Math.min(rows.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))]?.dataset.k);
+  } else if (e.key === ' ') {
+    const v = $('#video'); if (!v?.src) return;
+    e.preventDefault(); v.paused ? v.play() : v.pause();
+  } else if (e.key === 'Escape') {
+    $('#log').classList.remove('open');
+  }
+});
+
+start().catch(e => { $('#viewer').innerHTML = `<div class="empty">The panel could not load: ${esc(e.message)}</div>`; });
+</script>
+</body>
+</html>

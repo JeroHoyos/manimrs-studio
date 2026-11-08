@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "Permissions of the main window: the app's own events and commands.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

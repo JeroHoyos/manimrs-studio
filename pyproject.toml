@@ -1,0 +1,24 @@
+[project]
+name = "manimrs-studio"
+version = "0.5.0"  # the same as app/Cargo.toml
+description = "Make Manim Slides talks one slide at a time, with a desktop app and a Claude chat."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.13"
+# The engine uses only the standard library. Each talk installs manim in its own environment.
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "complexipy>=8.3.0",
+    "pytest>=8.3",
+]
+
+[tool.complexipy]
+# Maximum cognitive complexity of a function (the default is 15). Run: uv run complexipy .
+max-complexity-allowed = 10
+failed = true
+sort = "desc"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
