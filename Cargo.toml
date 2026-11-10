@@ -1,0 +1,39 @@
+# The Rust workspace of ManimRS Studio.
+#
+#   crates/desktop/   the apps that a person opens (the Tauri desktop app)
+#   crates/lib/       the libraries of the apps; they do not depend on Tauri
+#
+# The window of the desktop app is in frontend/ (TypeScript).
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/desktop/manimrs_studio",
+    "crates/lib/studio_agent",
+    "crates/lib/studio_engine",
+    "crates/lib/studio_shell",
+]
+
+[workspace.package]
+version = "0.6.0"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT"
+repository = "https://github.com/JeroHoyos/manimrs-studio"
+
+[workspace.dependencies]
+studio_agent = { path = "crates/lib/studio_agent" }
+studio_engine = { path = "crates/lib/studio_engine" }
+studio_shell = { path = "crates/lib/studio_shell" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[workspace.lints.clippy]
+# A library tells the app what happened; it never prints.
+print_stdout = "warn"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

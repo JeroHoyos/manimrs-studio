@@ -1,0 +1,16 @@
+[package]
+name = "studio_agent"
+description = "Runs Claude Code behind the chat and reads its past conversations"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+studio_engine.workspace = true
+serde.workspace = true
+serde_json.workspace = true

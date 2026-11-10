@@ -7,6 +7,7 @@ Run them from the repository root with `uv run pytest`.
 import json
 import os
 import struct
+import subprocess
 import sys
 import threading
 import time
@@ -241,6 +242,35 @@ def test_new_slide_keeps_windows_line_endings(talk):
     assert names(talk) == ["title", "closing", "extra"]
 
 
+def test_duplicate_copies_the_code_and_goes_after_the_slide(talk):
+    studio.new_slide(talk, "volumes", slide(talk, "title"))
+    source = talk.pres / "diapositivas" / "volumes.py"
+    source.write_text(source.read_text("utf-8") + "# mine", "utf-8")
+    copy = studio.duplicate(talk, slide(talk, "volumes"))
+    assert names(talk) == ["title", "volumes", "volumes_copy", "closing"]
+    assert (talk.pres / copy.file).read_text("utf-8").endswith("# mine")
+    assert studio.duplicate(talk, slide(talk, "volumes")).name == "volumes_copy_2"
+    assert studio.duplicate(talk, slide(talk, "title"), "Second title").name == "second_title"
+
+
+def test_export_of_a_video_names_the_videos_in_order(talk, tmp_path):
+    fake_render(talk)
+    listing = studio._video_list(talk, ["title", "closing"], tmp_path).read_text("utf-8")
+    assert [line.rsplit("/", 2)[1] for line in listing.splitlines()] == ["title", "closing"]
+    assert "-loop" in studio._video_filter(talk, "gif")
+    assert "scale=1920:1080" in studio._video_filter(talk, "mp4")[1]
+
+
+def test_export_refuses_what_it_cannot_make(talk):
+    fake_render(talk, "title")
+    with pytest.raises(RuntimeError, match="one slide"):
+        studio.export(talk, "gif", log=lambda *_: None)
+    with pytest.raises(RuntimeError, match="MP4 or GIF"):
+        studio.export(talk, "pdf", log=lambda *_: None, only="title")
+    with pytest.raises(RuntimeError, match="not rendered"):
+        studio.export(talk, "mp4", log=lambda *_: None, only="closing")
+
+
 def test_move(talk):
     studio.new_slide(talk, "middle", slide(talk, "title"))
     studio.move(talk, slide(talk, "closing"), None)
@@ -382,7 +412,7 @@ def test_command_line(talk, capsys):
 
 
 def test_command_line_contract_of_the_app(talk, capsys, tmp_path):
-    """The exact calls of app/src/main.rs: their arguments and JSON must not change."""
+    """The exact calls of crates/desktop/manimrs_studio/src/commands/: their arguments and JSON must not change."""
     def call(*argv):
         studio.main(list(argv))
         return json.loads(capsys.readouterr().out)
@@ -421,7 +451,7 @@ def panel(talk, monkeypatch):
         ([s.name for s in targets], q)))
     monkeypatch.setattr(studio, "_open_in_editor", lambda p: calls.append(("editor", p.name)))
     monkeypatch.setattr(studio, "_open", lambda p: calls.append(("open", p.name)))
-    server = ThreadingHTTPServer(("127.0.0.1", 0), studio.Panel)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), studio.panel_handler())
     threading.Thread(target=server.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{server.server_address[1]}", calls
     server.shutdown()
@@ -457,6 +487,15 @@ def test_panel_serves_ranges(panel):
     assert get(base + "/", Origin="http://evil.example")[0] == 403
 
 
+def test_panel_cannot_be_framed(panel):
+    base, _ = panel
+    for url in (base + "/", base + "/api/talks", base + "/nothing"):
+        headers = get(url)[1]
+        assert headers["X-Frame-Options"] == "DENY"
+        assert "frame-ancestors 'none'" in headers["Content-Security-Policy"]
+        assert headers["X-Content-Type-Options"] == "nosniff"
+
+
 def test_panel_api(panel, talk):
     base, calls = panel
     assert json.loads(get(base + "/api/talks")[2]) == [{"id": talk.id, "title": "Docker from scratch"}]
@@ -483,3 +522,70 @@ def test_panel_api(panel, talk):
     assert renders == [(["title", "closing"], "1080p"), (["title", "closing"], "1080p"),
                        (["closing"], "1080p")]
     assert ("editor", "title.py") in calls and ("open", "exported") in calls
+
+
+# ───────────────────────────── start and processes ─────────────────────────────
+
+def test_a_missing_program_is_named(talk):
+    with pytest.raises(RuntimeError, match="Could not find no-such-program-here"):
+        studio.run(["no-such-program-here", "x"], talk.pres, print)
+
+
+def test_file_url_is_relative_to_the_renders(talk):
+    video = talk.path("files/title/a.mp4")
+    video.parent.mkdir(parents=True)
+    video.write_bytes(b"x")
+    assert studio.file_url(talk, video).startswith(f"/file/{talk.id}/files/title/a.mp4?v=")
+    roundabout = talk.pres / "diapositivas" / ".." / "diapos" / "files" / "title" / "a.mp4"
+    assert studio.file_url(talk, roundabout).startswith(f"/file/{talk.id}/files/title/a.mp4?v=")
+
+
+def test_the_panel_modules_are_not_loaded_at_start():
+    code = ("import sys; sys.path.insert(0, sys.argv[1]); import studio; "
+            "print([m for m in ('http.server', 'zipfile', 'webbrowser') if m in sys.modules])")
+    out = subprocess.run([sys.executable, "-c", code, str(Path(studio.__file__).parent)],
+                         capture_output=True, text=True, check=True)
+    assert out.stdout.strip() == "[]"
+
+
+# ───────────────────────────── MCP server for any agent ─────────────────────────────
+
+def test_mcp_server_answers_an_agent(talk, monkeypatch):
+    import mcp_server
+    calls = []
+    monkeypatch.setattr(mcp_server, "studio", lambda *args: calls.append(args) or "done")
+    start = mcp_server.answer({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+    assert start["result"]["serverInfo"]["name"] == "studio"
+    assert mcp_server.answer({"jsonrpc": "2.0", "method": "notifications/initialized"}) is None
+    tools = mcp_server.answer({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})["result"]["tools"]
+    assert {t["name"] for t in tools} == {"talks", "slides", "notes", "render", "view", "place",
+                                          "export", "present"}
+    assert mcp_server.answer({"jsonrpc": "2.0", "id": 3, "method": "nope"})["error"]["code"] == -32601
+
+    def tool(name, **arguments):
+        message = {"jsonrpc": "2.0", "id": 9, "method": "tools/call",
+                   "params": {"name": name, "arguments": arguments}}
+        return mcp_server.answer(message)["result"]
+
+    assert not tool("render", talk="docker", slides=["title", 2], quality="480p")["isError"]
+    assert calls[-1] == ("docker", "render", "--quality=480p", "--", "title", "2")
+    assert not tool("place", talk="docker", method="slide_x", after="title")["isError"]
+    assert calls[-1] == ("docker", "place", "--after=title", "--", "slide_x")
+    assert tool("render", talk="docker", slides=[])["isError"]
+    assert tool("render", talk="docker", slides=["a"], quality="4k")["isError"]
+    assert tool("slides", talk="--help")["isError"]
+    assert tool("slides", talk="../other")["isError"]
+    assert tool("nothing", talk="docker")["isError"]
+
+
+def test_mcp_server_over_its_input_and_output(talk):
+    server = Path(studio.__file__).with_name("mcp_server.py")
+    lines = [{"jsonrpc": "2.0", "id": 1, "method": "ping"}, "not json",
+             {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "nothing"}}]
+    text = "\n".join(l if isinstance(l, str) else json.dumps(l) for l in lines) + "\n"
+    out = subprocess.run([sys.executable, str(server)], input=text, capture_output=True, text=True,
+                         encoding="utf-8", check=True)
+    first, second, third = (json.loads(l) for l in out.stdout.splitlines())
+    assert first == {"jsonrpc": "2.0", "id": 1, "result": {}}
+    assert second["error"]["code"] == -32700
+    assert third["result"]["isError"]

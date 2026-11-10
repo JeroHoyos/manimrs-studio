@@ -1,0 +1,19 @@
+{
+  "name": "manimrs-studio-frontend",
+  "private": true,
+  "version": "0.6.0",
+  "description": "The window of ManimRS Studio, in TypeScript",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p apps/studio --noEmit",
+    "test": "node --test libs"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

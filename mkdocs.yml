@@ -14,12 +14,15 @@ theme:
 nav:
   - Home: index.md
   - Installation: installation.md
+  - Tutorial: tutorial.md
   - Usage guide: usage-guide.md
   - Talks: talks.md
   - Claude chat: claude-chat.md
+  - Other agents: other-agents.md
   - Web panel: web-panel.md
   - Command reference: cli-reference.md
   - How it works: how-it-works.md
+  - Problems and solutions: problems.md
   - Documentation style: writing-style.md
 
 markdown_extensions:

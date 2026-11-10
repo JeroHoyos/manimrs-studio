@@ -1,0 +1,11 @@
+[project]
+name = "strange-attractor"
+version = "0.1.0"
+description = "A butterfly in the equations: presentation with Manim Slides"
+requires-python = ">=3.13"
+dependencies = [
+    # manim 0.22 breaks manim-slides 5.7 (it has no config.write_to_movie)
+    "manim>=0.18,<0.22",
+    "manim-slides[pyqt6]>=5.1",
+    "numpy>=1.26",
+]

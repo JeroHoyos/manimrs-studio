@@ -1,6 +1,6 @@
 # Rust and Tauri
-app/target/
-app/gen/schemas/
+target/
+crates/desktop/manimrs_studio/gen/schemas/
 
 # Python
 __pycache__/
@@ -17,3 +17,17 @@ talks.json
 
 # Documentation site (mkdocs build)
 site/
+
+# Frontend (TypeScript)
+frontend/node_modules/
+frontend/.tools/
+frontend/apps/studio/dist/
+
+# The folder of the app before the workspace
+app/
+
+# Renders of the example talks
+examples/*/diapos/
+examples/*/media/
+examples/*/slides/
+examples/*/.venv/

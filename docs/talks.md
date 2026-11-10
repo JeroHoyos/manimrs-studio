@@ -12,6 +12,8 @@ folder. The engine keeps the list in `manimrs-studio/talks.json`.
 | See or change a talk | Click the **ⓘ** button next to the list. | A form shows the title, what the talk is about, the author and the language. *Show in folder* opens the folder of the talk. |
 | Remove a talk from the list | In the same form, click *Remove from the list…*. | The engine does not delete files. You can open the talk again at a later time. |
 
+![The form with the details of a talk: title, what it is about, author, language and folder](images/talk-details.png)
+
 For *Open a talk…*, you can select one of these folders:
 
 - The folder of the talk.
@@ -112,11 +114,8 @@ change the files of the other slides.
 | `_resolutions.json` | The resolution of each slide that has its own resolution. |
 | `_thumbnails/` | One image for each slide. |
 | `_stills/` | One image for each pause, for Claude. |
-| `exported/` | The HTML package and the PDF. |
+| `exported/` | The exports: HTML package, PDF, MP4 and GIF. |
 | `_data.lock`, `_render.lock` | Locks. Only one process at a time changes these files or renders the talk. |
 
-Older versions of the engine used Spanish names: `_registro.json`, `_revision.json`,
-`_calidades.json`, `_miniaturas/`, `_fotos/` and `exportado/`. The engine changes them to the new
-names the first time that it opens the talk.
-
-The old `presentacion/slides/` folder of Manim Slides is not necessary. You can delete it.
+Older versions of the engine used Spanish names for these files. The engine changes them to the
+new names the first time that it opens the talk.

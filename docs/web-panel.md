@@ -11,7 +11,10 @@ files as the app. You can use the app, the web panel and the commands together.
 To start it from a terminal, type `.\studio` in the `manimrs-studio` folder. To stop it, push
 Ctrl+C in the terminal window.
 
-The web panel answers only to its own page. A web site in the browser cannot send it requests.
+The web panel answers only to its own page. A web site in the browser cannot send it requests,
+and cannot show the panel in a frame.
+
+![The web panel: the slides on the left, the video and the review in the center](images/web-panel.png)
 
 ## The parts of the panel
 

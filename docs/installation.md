@@ -4,15 +4,15 @@
 
 | Item | Why it is necessary |
 | --- | --- |
-| Windows 10 or Windows 11 | The app is a Windows app. It uses the recycle bin and the folder dialog of Windows. |
-| Microsoft Edge WebView2 | The window of the app. Windows 11 has it. |
+| Windows 10 or Windows 11 | The app is primarily a Windows app. For Linux, refer to [Linux](#linux). |
+| Microsoft Edge WebView2 | The window of the app. Windows 11 has it. For Windows 10, get the [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/). |
 | [uv](https://docs.astral.sh/uv/) | The engine and the talks run Python with uv. uv also installs Python. |
 | [Claude Code](https://claude.com/claude-code) | The chat of the app runs Claude Code. Log in before you start the app. |
 | [FFmpeg](https://ffmpeg.org/) on the `PATH` | The thumbnails of the slides, the stills for Claude and the PDF export. |
 | [Rust](https://rustup.rs/) | Only to build the app. |
 | Visual Studio Build Tools, C++ workload | Only to build the app. |
 
-Node.js is not necessary. The interface of the app has no build step.
+[Node.js](https://nodejs.org/) 20 or later is necessary to build the window of the app.
 
 Each talk installs Manim and Manim Slides in its own Python environment, with uv. Some slides
 use more programs, for example LaTeX for math. Refer to the
@@ -26,8 +26,9 @@ talks folder. The app and the engine look for talks there the first time:
 ```text
 talks/                      the talks folder
 ├── manimrs-studio/         this repository
-│   ├── app/
-│   ├── engine/
+│   ├── crates/             the app (Rust)
+│   ├── frontend/           the window (TypeScript)
+│   ├── engine/             the engine (Python)
 │   ├── talks.json          the list of talks (the engine makes it)
 │   └── studio.cmd
 ├── charla-git/             a talk
@@ -38,51 +39,55 @@ A talk can also be in a different folder. For more information, refer to [Talks]
 
 ## Install the app
 
-1. Open a terminal in the talks folder. If you do not have talks, use an empty folder.
-2. Clone the repository into that folder:
+Open a terminal in the talks folder. If you do not have talks, use an empty folder.
 
-   ```powershell
+```powershell
+git clone https://github.com/JeroHoyos/manimrs-studio.git
+cd manimrs-studio\frontend
+npm ci
+npm run build
+cd ..
+cargo build --release
+.\target\release\manimrs-studio.exe
+```
+
+The first build takes some minutes. If a program is not installed, the app tells you which one.
+Refer to [Problems and solutions](problems.md). Then make your first talk with the
+[tutorial](tutorial.md).
+
+## Linux
+
+Linux support is experimental. The CI builds the app and runs the tests of the engine on Ubuntu.
+The maintainers did not use the app on a Linux desktop. Report the problems that you find.
+
+1. Install the packages that Tauri uses. On Ubuntu or Debian:
+
+   ```bash
+   sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev build-essential
+   ```
+
+2. Install uv, FFmpeg, Rust and Claude Code.
+3. Clone the repository into the talks folder and build the app:
+
+   ```bash
    git clone https://github.com/JeroHoyos/manimrs-studio.git
-   ```
-
-3. Go to the folder of the app:
-
-   ```powershell
-   cd manimrs-studio\app
-   ```
-
-4. Build the app:
-
-   ```powershell
+   cd manimrs-studio/frontend && npm ci && npm run build && cd ..
    cargo build --release
+   ./target/release/manimrs-studio
    ```
 
-5. Start `target\release\manimrs-studio.exe`.
-
-The first build takes some minutes. The build puts the interface (`app/ui/`) into the `.exe` file.
-
-To start the app with a double click, make a Windows shortcut to the `.exe` file. You can pin the
-shortcut to the taskbar.
+| Function | On Linux |
+| --- | --- |
+| Folder dialog | The app uses `zenity` or `kdialog`. Install one of them. |
+| Recycle bin | The engine uses `gio trash`. Without `gio`, the file of a deleted slide stays in its folder. |
+| Terminal | The app opens the first one that it finds: `x-terminal-emulator`, `gnome-terminal`, `konsole`, `xfce4-terminal` or `xterm`. |
+| Web panel and commands | Run `sh studio.sh` in the `manimrs-studio` folder. |
+| Fonts | A new talk uses the font `Segoe UI`. Change `FONT` in the `style.py` file of the talk to a font that you have. |
 
 ## Update the app
 
-1. Close the app.
-2. Get the new version of the repository:
+Close the app, run `git pull`, then do the build commands again. If the app is open, the build
+cannot replace the `.exe` file.
 
-   ```powershell
-   git pull
-   ```
-
-3. Build the app again:
-
-   ```powershell
-   cd app
-   cargo build --release
-   ```
-
-If the app is open, the build cannot replace the `.exe` file. Close the app first, or rename the
-`.exe` file that runs.
-
-## Start the app for development
-
-Run `cargo run` in `app/`. This build is faster to make, and a console window shows the errors.
+For development, run `cargo run` in the folder of the repository. This build is faster to make, and
+a console window shows the errors.

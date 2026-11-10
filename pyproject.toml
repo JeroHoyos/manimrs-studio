@@ -1,6 +1,6 @@
 [project]
 name = "manimrs-studio"
-version = "0.5.0"  # the same as app/Cargo.toml
+version = "0.6.0"  # the same as Cargo.toml
 description = "Make Manim Slides talks one slide at a time, with a desktop app and a Claude chat."
 readme = "README.md"
 license = "MIT"

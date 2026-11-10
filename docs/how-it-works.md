@@ -4,16 +4,16 @@
 
 | Part | File | What it does |
 | --- | --- | --- |
-| Window | `app/ui/` | HTML and JavaScript without a build step. The app shows Markdown with `marked` and cleans it with `DOMPurify`. The player keeps one video for each pause on one timeline. |
-| Claude | `app/src/claude.rs` | Runs `claude -p` with stream-json for input and output. This is the interface of the Agent SDK and of the editor extensions. The window gets each event and answers permission requests, questions and plans. |
-| MCP | `app/src/mcp.rs` | An MCP server over HTTP at `127.0.0.1:8766/mcp`. If that port is not free, the app uses a different port. |
-| Server | `app/src/server.rs` | Also sends the videos and the thumbnails to the window. |
-| Jobs | `app/src/jobs.rs` | A queue of renders and exports. It runs one job at a time, and you can cancel a job. |
-| Engine bridge | `app/src/engine.rs` | Calls `engine/studio.py`. It finds the folder of each talk in `talks.json`. It keeps the status of a talk until a file of the talk changes. |
-| Shell | `app/src/shell.rs` | Opens links, folders and settings files with the Windows shell. The folder dialog comes from Windows, through `rfd`. |
+| Window | `frontend/apps/studio/` | TypeScript. `npm run build` in `frontend/` puts it in `dist/`. The app shows Markdown with `marked` and cleans it with `DOMPurify`. The player keeps one video for each pause on one timeline. |
+| Claude | `crates/lib/studio_agent/` | Runs `claude -p` with stream-json for input and output. This is the interface of the Agent SDK and of the editor extensions. The window gets each event and answers permission requests, questions and plans. |
+| MCP | `crates/desktop/manimrs_studio/src/mcp.rs` | An MCP server over HTTP at `127.0.0.1:8766/mcp`. If that port is not free, the app uses a different port. |
+| Server | `crates/desktop/manimrs_studio/src/server.rs` | Also sends the videos and the thumbnails to the window. |
+| Jobs | `crates/lib/studio_engine/src/jobs.rs` | A queue of renders and exports. It runs one job at a time, and you can cancel a job. |
+| Engine bridge | `crates/lib/studio_engine/` | Calls `engine/studio.py`. It finds the folder of each talk in `talks.json`. It keeps the status of a talk until a file of the talk changes. |
+| Shell | `crates/lib/studio_shell/` | Opens links, folders and settings files with the Windows shell. The folder dialog comes from Windows, through `rfd`. |
 
 The app calls the engine as a command. The commands that the app uses, and their JSON output, are a
-contract. Do not change them without a change to `app/src/`.
+contract. Do not change them without a change to `crates/`.
 
 ## The render of one slide
 
@@ -73,4 +73,4 @@ The app, the web panel, the commands and Claude can work on the same talk at the
 
 The tests in `tests/` make a talk in a temporary folder. Manim is not necessary for the tests. They
 make the files of a render without Manim. The complexipy tool keeps the cognitive complexity of each Python
-function at 10 or less. For the commands, refer to [CONTRIBUTING.md](../CONTRIBUTING.md).
+function at 10 or less. For the commands, refer to the [README](../README.md#contribution).

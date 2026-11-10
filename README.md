@@ -1,137 +1,134 @@
-# ManimRS Studio
+Language: EN | [Español](README.es.md)
 
-Make the slides of a [Manim Slides](https://github.com/jeertmans/manim-slides) talk one slide at a
-time, with Claude.
+<h1 align="center">ManimRS Studio</h1>
 
-[Installation](#installation) | [Quick start](#quick-start) | [Features](#features) |
-[Documentation](docs/index.md) | [Changelog](CHANGELOG.md) | [Contribute](CONTRIBUTING.md)
+<p align="center">
+  <img src="https://img.shields.io/badge/Windows%20%7C%20Linux%20(experimental)-111827?style=for-the-badge" alt="Windows and Linux" />
+  <img src="https://img.shields.io/badge/open%20source-MIT-2b59ff?style=for-the-badge" alt="MIT license" />
+  <img src="https://img.shields.io/badge/status-pre--release%200.6-b45309?style=for-the-badge" alt="Pre-release 0.6" />
+</p>
 
-ManimRS Studio is a desktop app for Windows. It shows the slides of a talk, renders only the slides
-that you select and keeps the other slides as they are. A Claude chat in the app can change a slide,
-render it and examine the result.
+ManimRS Studio is an open-source desktop app for talks made with
+[Manim Slides](https://github.com/jeertmans/manim-slides). Render only the slide that changed,
+point at what is wrong, and let an agent fix it.
+
+![A short tour of the app: three 3D slides of a talk about AI, a mark on a slide, the render of only what changed, the approval and the export](docs/images/trailer.gif)
+
+[Watch the trailer as a video](docs/images/trailer.mp4)
+
+> [!IMPORTANT]
+> **This is a pre-release. Version 1.0 is not out.** There is no installer, Linux is experimental,
+> and the file formats can change. The project does not take donations at this time.
 
 ## Why
 
-Manim Slides renders a talk as one scene. When you render only some slides, Manim Slides writes a
-presentation file that has only those slides. When you render all the slides, it renders each slide
-again, also the slides that did not change.
+Manim Slides renders a talk as one scene. If you render some slides, you lose the other slides.
+If you render all the slides, you wait for all of them.
 
 ManimRS Studio keeps each slide in a file of its own, with its videos. When you render one slide,
 the other slides do not change. Each slide still starts with the transition from the slide before
-it, as in the full talk.
+it.
 
 ## Features
 
-- **One slide at a time.** The engine renders only the slides that you select. It does not delete
-  the other slides and it does not render them again.
-- **A status for each slide.** The app shows the slides that are up to date and the slides that
-  changed. It also shows when the slide before changed, when the shared code changed and when the
-  resolution is different.
-- **Review.** Write a note for a slide and send it to Claude. Approve the slide when it is correct.
-- **Claude chat.** The chat has the options of the Claude Code extension for VS Code. Through a
-  local MCP server, Claude can render a slide, get the image of each pause and show the slide to you.
-- **Changes to the talk.** Add, move, rename and delete slides. The app changes `main.py` and the
-  registry of the slides. When you rename a slide, the app also renames its videos.
-- **Talks in any folder.** Make a new talk, or open a talk from any folder.
-- **Present and export.** Present in full screen. Export an HTML package for another device, or a
-  PDF with the last frame of each pause.
-- **A web panel and commands.** The same engine works from a browser panel and from a terminal.
+- **One slide at a time.** *Render pending* renders only the new slides and the slides that
+  changed.
+- **Point, draw, move.** Mark the frame of a slide. The marked frame goes to the agent with your
+  note.
+- **A chat that sees the slides.** Claude renders a slide, examines the image of each pause and
+  shows you the result.
+- **Your agent, your model.** The tools of the app are an MCP server. Refer to
+  [Other agents](docs/other-agents.md).
+- **Present and export.** Full screen, HTML, PDF, MP4 and GIF.
 
-## Requirements
+<p>
+  <img src="docs/images/mark.png" width="700" alt="Marks on a slide: a point, a circle and an arrow">
+</p>
 
-- Windows 10 or Windows 11, with Microsoft Edge WebView2. Windows 11 has WebView2.
-- [uv](https://docs.astral.sh/uv/). The engine and each talk use uv to run Python.
-- [Claude Code](https://claude.com/claude-code), for the chat. Log in to Claude Code before you
-  start the app.
-- [FFmpeg](https://ffmpeg.org/) on the `PATH`, for the thumbnails, the stills and the PDF.
-- To build the app: [Rust](https://rustup.rs/) and the Visual Studio Build Tools with the C++
-  workload. Node.js is not necessary.
+## Examples
+
+The repository has two [example talks](examples/README.md).
+
+| Drawing with circles | A butterfly in the equations |
+| --- | --- |
+| <img src="docs/media/fourier-heart.gif" width="420" alt="Forty circles that turn draw a heart"> | <img src="docs/media/lorenz-attractor.gif" width="420" alt="The Lorenz attractor turns"> |
+| [`examples/fourier-circles`](examples/fourier-circles/) | [`examples/strange-attractor`](examples/strange-attractor/) |
 
 ## Installation
 
-The engine finds the talks from its own folder. Put this repository in the folder that holds
-your talks.
+There is no installer at this time. Build the app from the source. These programs are necessary:
+[uv](https://docs.astral.sh/uv/), [FFmpeg](https://ffmpeg.org/), [Rust](https://rustup.rs/) and
+[Node.js](https://nodejs.org/) 20 or later. The chat also uses
+[Claude Code](https://claude.com/claude-code).
 
-1. Open a terminal in the folder that holds your talks. If you do not have talks, use an empty
-   folder.
-2. Clone the repository into that folder:
+Put this repository in the folder that holds your talks. If you do not have talks, use an empty
+folder.
 
-   ```powershell
-   git clone https://github.com/JeroHoyos/manimrs-studio.git
-   ```
+```powershell
+git clone https://github.com/JeroHoyos/manimrs-studio.git
+cd manimrs-studio\frontend
+npm ci
+npm run build
+cd ..
+cargo build --release
+.\target\release\manimrs-studio.exe
+```
 
-3. Build the app:
+The app runs on Windows 10 and 11. Linux is experimental and macOS is not supported. Refer to
+[Installation](docs/installation.md) and [Problems and solutions](docs/problems.md).
 
-   ```powershell
-   cd manimrs-studio\app
-   cargo build --release
-   ```
+## Usage
 
-4. Start `manimrs-studio\app\target\release\manimrs-studio.exe`.
+1. Start the app and click *New talk*.
+2. Click *Render 2 pending*. The first time, the talk installs its Python packages.
+3. Click *Mark on the slide*, or write what to change in *Review*. Then click *Send to Claude*.
+4. When the slide is correct, click *Approve*.
+5. Click *Present* for full screen, or *Export* for HTML, PDF or MP4.
 
-The first build takes some minutes. To start the app with a double click, make a shortcut to the
-`.exe` file. For more information, refer to [Installation](docs/installation.md).
+The [tutorial](docs/tutorial.md) shows each step with images. All the
+[documentation](docs/index.md) is also in [Spanish](docs/es/index.md).
 
-## Quick start
+## Status and Roadmap
 
-1. Start the app.
-2. Select a talk in the list at the top. To make a new talk, select *+ New talk* at the end of the
-   list.
-3. Click *Render pending*. The first time, the talk installs its Python packages. This takes some
-   minutes.
-4. Select a slide in the list on the left. The center shows the video of the slide.
-5. Type a request in the chat on the right. For example:
-   `/slides git: a new slide after git_diff that explains git stash`.
-6. Write what to change in *Review*, then click *Send to Claude*.
-7. When the slide is correct, click *Approve*.
+- **Good today:** render one slide, review with marks, the Claude chat, the exports, Windows.
+- **Thin:** Linux, other agents, the types of the window code.
+- **Not started:** installers, macOS, a dark theme, the interface in Spanish.
 
-## The parts
+The steps to version 1.0 are an installer (0.7), strict TypeScript and themes (0.8), a second
+agent in the chat and speaker notes (0.9), then macOS and stable formats (1.0).
 
-| Part | Path | What it does |
-| --- | --- | --- |
-| The app | `app/` | The desktop app, in Rust and Tauri: the list of slides, the video player, the review and the Claude chat. |
-| The engine | `engine/studio.py` | Reads, changes, renders, presents and exports the talks. The app, the web panel and the commands use it. |
-| The render scene | `engine/scene.py` | Renders only the slides that the engine asks for. |
-| The presenter | `engine/present.py` | The presenter of Manim Slides, with a full screen mode that fits the screen. |
-| The web panel | `engine/panel.html` | The list of slides and the review in a browser. |
-| The commands | `studio.cmd` | The engine from a terminal. A double click opens the web panel. |
+## Contribution
 
-## Documentation
+Pull requests are welcome. Keep each one small: one feature or one fix. Before you send it, run
+the tests and the complexity check, then build the app and examine the change in the window:
 
-| Page | Contents |
-| --- | --- |
-| [Installation](docs/installation.md) | Requirements, folders, build and update. |
-| [Usage guide](docs/usage-guide.md) | The app: review, slide changes, resolution, present and export. |
-| [Talks](docs/talks.md) | Talks in any folder, the `talk.manimrs` file and the format of a talk. |
-| [Claude chat](docs/claude-chat.md) | The chat, its options and the MCP tools of the app. |
-| [Web panel](docs/web-panel.md) | The browser panel. |
-| [Command reference](docs/cli-reference.md) | All the commands of the engine. |
-| [How it works](docs/how-it-works.md) | The parts of the app and the render of one slide. |
-| [Documentation style](docs/writing-style.md) | The ASD-STE100 rules of this documentation. |
+```powershell
+uv sync
+uv run pytest
+uv run complexipy .
+cd frontend
+npm ci
+npm run build
+cd ..
+cargo build --release
+```
 
-## Contribute
+[How it works](docs/how-it-works.md) shows the parts of the code. Write code, comments and
+documentation in English, with the [documentation style](docs/writing-style.md).
 
-Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before you start. All
-participants must obey the [code of conduct](CODE_OF_CONDUCT.md).
-
-## Security
-
-The app runs Claude and Python on your computer. [SECURITY.md](SECURITY.md) gives the security
-model and tells you how to report a vulnerability.
+Report bugs and ideas in the [issues](https://github.com/JeroHoyos/manimrs-studio/issues). Do not
+report a vulnerability in a public issue. Use *Report a vulnerability* in the *Security* tab.
 
 ## License
 
-ManimRS Studio is free software under the [MIT License](LICENSE). The app includes code and fonts
-from other projects, each with its own license:
+ManimRS Studio is free software under the [MIT License](LICENSE). The app includes marked (MIT),
+DOMPurify (Apache-2.0 or MPL-2.0), Space Grotesk and IBM Plex Mono (SIL Open Font License 1.1), in
+`frontend/apps/studio/public/`.
 
-| Component | Path | License |
-| --- | --- | --- |
-| marked | `app/ui/vendor/marked.min.js` | MIT |
-| DOMPurify | `app/ui/vendor/purify.min.js` | Apache-2.0 or MPL-2.0 |
-| Space Grotesk | `app/ui/fonts/space-grotesk.woff2` | SIL Open Font License 1.1 |
-| IBM Plex Mono | `app/ui/fonts/ibm-plex-mono-*.woff2` | SIL Open Font License 1.1 |
-
----
-
-ManimRS Studio is not a part of the Manim Community project, Manim Slides or Anthropic. Claude is a
-trademark of Anthropic.
+ManimRS Studio stands on [Manim Community](https://www.manim.community/) and
+[Manim Slides](https://github.com/jeertmans/manim-slides). The
+[3Blue1Brown videos](https://github.com/3b1b/videos) are the model for the example talks,
+[Recordly](https://github.com/webadderallorg/Recordly) for this page and
+[ArtCraft](https://github.com/storytold/artcraft) for the layout of the code. The
+project is not a part of Manim Community, Manim Slides or Anthropic. Claude is a trademark of
+Anthropic.

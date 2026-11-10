@@ -24,6 +24,8 @@ result or the image. The last answer of Claude stays below the row. The focus vi
 
 You can send more messages while Claude works.
 
+![A request for Claude in the message box, below the three requests to try](images/chat.png)
+
 ## Mode, model and effort
 
 - **Mode.** Claude always works in *Auto mode*. Claude does safe actions without a question. Before
@@ -45,6 +47,10 @@ extension for VS Code:
 
 *Rewind* puts back the code, the conversation or both, as they were before a message. The list
 also shows all the slash commands.
+
+![The list of actions of the chat](images/chat-actions.png)
+
+A web link in an answer of Claude opens in your browser, not in the app.
 
 ## History
 
@@ -76,10 +82,14 @@ permission card:
 The value of `talk` is the name from the list of talks, for example `charla-git`. The prefix
 `charla-` is optional. The value of `slide` is the name or the number of the slide.
 
+To use a different agent or model, refer to [Other agents](other-agents.md).
+
 ## The slides skill
 
 The `/slides` command comes from the `slides` skill of Claude Code. The skill tells Claude the
 procedure for a slide. Claude reads the rules of the talk and makes the smallest change. Then it
 renders the slide, examines its images and shows the slide to the user.
 
-Claude Code finds the skill in `.claude/skills/slides/SKILL.md` of the talks folder.
+Claude Code finds the skill in `.claude/skills/slides/SKILL.md` of the talks folder. The repository
+has a copy in `manimrs-studio/.claude/skills/slides/`. If the talks folder does not have the skill,
+copy it there.

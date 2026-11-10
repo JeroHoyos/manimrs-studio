@@ -4,8 +4,7 @@ The documentation of ManimRS Studio uses ASD-STE100 Simplified Technical English
 the text easy to read for persons whose first language is not English. It also makes the text easy
 to translate.
 
-Use these rules for all documentation: the README files, the files in `docs/`, CONTRIBUTING.md,
-SECURITY.md and the templates in `.github/`. The rules do not apply to code comments, to the text in
+Use these rules for all documentation: the README files and the files in `docs/`. The rules do not apply to code comments, to the text in
 the interface or to the descriptions of the MCP tools.
 
 ## Words

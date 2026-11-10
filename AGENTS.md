@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ManimRS Studio makes the slides of Manim Slides talks one slide at a time, with Claude. It has a
-desktop app for Windows (Rust and Tauri), an engine in Python and a web panel.
+desktop app for Windows and Linux (Rust and Tauri), an engine in Python and a web panel.
 
 ## Code standard
 
@@ -28,8 +28,10 @@ desktop app for Windows (Rust and Tauri), an engine in Python and a web panel.
 | `engine/scene.py` | The Manim scene that renders only the selected slides. It runs in the environment of the talk. |
 | `engine/present.py` | The presenter of Manim Slides, with a correct full screen mode. |
 | `engine/panel.html` | The web panel. |
-| `app/src/` | The app in Rust: `claude.rs` (the chat), `mcp.rs` (the MCP tools), `engine.rs` (calls to the engine), `jobs.rs`, `server.rs`, `shell.rs`, `main.rs`. |
-| `app/ui/` | The interface: HTML, CSS and JavaScript without a build step. |
+| `engine/mcp_server.py` | The MCP server for other agents. It gives the same tools as `crates/desktop/manimrs_studio/src/mcp.rs`. Keep the two in step. |
+| `crates/desktop/manimrs_studio/` | The Tauri app: `commands/` (one module for each part of the window), `mcp.rs` (the MCP tools), `server.rs`. |
+| `crates/lib/` | Libraries without Tauri: `studio_engine` (calls to the engine, the job queue), `studio_agent` (the chat), `studio_shell` (links, folders, dialogs). |
+| `frontend/apps/studio/` | The window: HTML, CSS and TypeScript. `frontend/libs/` holds the types that the window and the engine share. |
 | `tests/test_studio.py` | The tests of the engine. |
 | `docs/` | The documentation. |
 
@@ -39,10 +41,11 @@ desktop app for Windows (Rust and Tauri), an engine in Python and a web panel.
 uv sync                            # pytest and complexipy
 uv run pytest                      # the tests of the engine, without Manim
 uv run complexipy .                # 10 or less for each function
-cd app; cargo build --release      # the app, also after a change to app/ui/
+cd frontend; npm ci; npm run build # the window (TypeScript), into frontend/apps/studio/dist/
+cargo build --release              # the app; it takes the window from dist/
 ```
 
-- `python` is not on the `PATH`. Use `uv run`.
+- Run Python with `uv run`.
 - Test a change to a talk on a copy in a temporary folder, never on a real talk. Copy the
   `manimrs-studio/engine/` folder next to the copy, two levels above the talk folder.
 - If the app is open, the build cannot replace the `.exe` file. Close the app first.
@@ -52,7 +55,7 @@ cd app; cargo build --release      # the app, also after a change to app/ui/
 **The contract between the app and the engine**
 
 - The app calls the engine as a command. Do not change these commands or their JSON output without
-  a change to `app/src/`:
+  a change to `crates/`:
   - `talks --json`, `open --json -- <path>`, `new-talk --json … -- <title>`
   - `<talk> info --json`, `<talk> forget`, `<talk> status`, `<talk> list`, `<talk> notes`
   - `<talk> stills --width=1280 -- <slide>`, `<talk> place`, `<talk> render`
@@ -82,12 +85,15 @@ cd app; cargo build --release      # the app, also after a change to app/ui/
 - Do not show code references in the interface: no paths, no method names, no file names of code.
 - Prefer fewer options.
 
-**Libraries in app/ui/vendor**
+**Windows and Linux**
+
+- The app and the engine run on Windows and on Linux. Put code for one system behind
+  `#[cfg(windows)]` or `#[cfg(not(windows))]` in Rust, and behind `os.name` in Python.
+- Find a program with `engine::on_path("uv")` and the user folder with `engine::home_dir()`. Do not
+  write `.exe` or `USERPROFILE` in other places.
+- The CI builds the app and runs the tests on the two systems.
+
+**Libraries in frontend/apps/studio/public/vendor**
 
 - Get them only from the official npm package. Make sure that the file agrees with the `integrity`
   hash. Use a version that has been on npm for two weeks or more.
-
-**Parallel sessions**
-
-- Other sessions can change this folder at the same time. Before a large change, look at the files
-  that changed recently and tell the other sessions what you will change.

@@ -1,0 +1,27 @@
+[package]
+name = "studio_shell"
+description = "The desktop of the user: links, folders, the folder picker and the startup message"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+studio_engine.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+# The Windows folder picker, to create a talk where the user wants or open one from anywhere (on
+# Linux the app asks zenity or kdialog). Pinned: 0.18 was published a day before this was written.
+rfd = { version = "=0.17.2", default-features = false }
+# The window that the folder picker opens over.
+raw-window-handle = "0.6"
+# Opening links and folders with the shell (never through cmd) and the startup error message.
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }

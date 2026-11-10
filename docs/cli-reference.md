@@ -56,6 +56,8 @@ Options of `new-talk`:
 | `studio <talk> render --all` | Renders all the slides. |
 | `studio <talk> present [<slide>]` | Presents the slides that have a video, from `<slide>`. |
 | `studio <talk> export [--pdf]` | Makes the HTML package and its `.zip`, or a PDF with one page for each pause. |
+| `studio <talk> export --mp4 [<slide>]` | Makes one video of the talk, or of one slide. A loop plays one time. |
+| `studio <talk> export --gif <slide>` | Makes a GIF of one slide, 960 pixels wide. |
 | `studio <talk> stills <slide> [--width <pixels>]` | Makes a PNG image of the end of each pause. |
 | `studio <talk> notes` | Lists the changes from the review. |
 | `studio <talk> note <slide> "<text>"` | Writes a change request for the slide. |
@@ -65,6 +67,7 @@ Options of `new-talk`:
 | `studio <talk> place slide_<name> [--after <slide>]` | Puts a registered slide in `main.py`. |
 | `studio <talk> move <slide> --after <slide>` | Moves a slide. Use `--first` to make it the first slide. |
 | `studio <talk> rename <slide> "<new name>"` | Renames a slide and its videos. |
+| `studio <talk> duplicate <slide> ["<new name>"]` | Makes a copy of a slide after it. Without a name, the copy is `<slide>_copy`. |
 | `studio <talk> restore <slide>` | Removes the comment from the call of a slide in `main.py`. |
 | `studio <talk> delete <slide>` | Removes a slide. Its file goes to the recycle bin. |
 | `studio <talk> resolution <slide> <value>` | Sets the resolution of one slide: `480p`, `720p`, `1080p` or `default`. |

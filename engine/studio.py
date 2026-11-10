@@ -42,30 +42,34 @@ Everything it produces lives in `diapos/` of each talk: one .json per slide plus
 rendering one slide never deletes or redoes the others.
 """
 
+import sys
+
+if sys.version_info < (3, 10):  # before the other imports: an older Python fails on the syntax below
+    raise SystemExit("ManimRS Studio needs Python 3.10 or newer, run it with uv: "
+                     "uv run --no-project manimrs-studio/engine/studio.py")
+
 import argparse
 import ast
 import hashlib
 import json
-import mimetypes
 import os
 import re
 import shutil
 import struct
 import subprocess
-import sys
-import tempfile
 import threading
 import time
 import unicodedata
-import webbrowser
-import zipfile
 from collections import Counter, deque
 from contextlib import suppress
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
+
+# The app starts this file for every question it asks, so what only the panel and the exports use
+# (http.server, mimetypes, webbrowser, zipfile, tempfile) is imported where it is used: together
+# they added about 50 ms to every start.
 
 HERE = Path(__file__).resolve().parent
 # The talks folder: this file lives in <talks>/manimrs-studio/engine/.
@@ -699,7 +703,10 @@ def talk_status(talk: Talk) -> dict:
 
 
 def file_url(talk: Talk, p: Path) -> str:
-    rel = p.resolve().relative_to(talk.renders.resolve()).as_posix()
+    try:
+        rel = p.relative_to(talk.renders).as_posix()
+    except ValueError:  # written another way (a link, “..”): the slow way, through the real paths
+        rel = p.resolve().relative_to(talk.renders.resolve()).as_posix()
     return f"/file/{talk.id}/{rel}?v={int(p.stat().st_mtime)}"
 
 
@@ -784,10 +791,20 @@ class RenderLock(_DataLock):
                 time.sleep(2)
 
 
+def _start(cmd, **options) -> subprocess.Popen:
+    # Under the panel on Linux each job leads a process group, so “Cancel” stops it with its
+    # children. Under the app it stays in the group the app gave the engine, which the app stops.
+    own_group = os.name != "nt" and JOBS is not None
+    try:
+        return subprocess.Popen(cmd, start_new_session=own_group, **options)
+    except FileNotFoundError:
+        raise RuntimeError(f"Could not find {cmd[0]}, install it (or add it to the PATH) and "
+                           "try again") from None
+
+
 def run(cmd, cwd, log, env=None, on_start=None) -> tuple[int, list[str]]:
-    proc = subprocess.Popen(cmd, cwd=cwd, env=env or _env(), stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT, text=True, encoding="utf-8",
-                            errors="replace")
+    proc = _start(cmd, cwd=cwd, env=env or _env(), stdout=subprocess.PIPE,
+                  stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
     if on_start:
         on_start(proc)
     lines = []
@@ -917,19 +934,26 @@ def present(talk: Talk, start: str | None = None, wait=True, log=print):
     if start in have:
         cmd += ["--sacn", str(have.index(start))]
     log("Presenting in full screen: → next, ← back, F or Esc for a window, Q quit")
-    proc = subprocess.Popen(cmd, cwd=talk.pres, env=_env())
+    proc = _start(cmd, cwd=talk.pres, env=_env())
     if wait:
         proc.wait()
 
 
-def export(talk: Talk, fmt="html", log=print) -> Path:
+def export(talk: Talk, fmt="html", log=print, only: str | None = None) -> Path:
+    """Exports the talk as HTML, PDF or MP4. With `only`, exports that slide as MP4 or GIF."""
     have, missing = rendered(talk)
     if not have:
         raise RuntimeError("No slides are rendered yet")
-    if missing:
-        log(f"Heads up, {len(missing)} not rendered are left out of the export")
     target = talk.path("exported")
     target.mkdir(parents=True, exist_ok=True)
+    if only:
+        return _export_slide(talk, only, have, fmt, target, log)
+    if missing:
+        log(f"Heads up, {len(missing)} not rendered are left out of the export")
+    if fmt == "gif":
+        raise RuntimeError("A GIF is of one slide, tell me which slide")
+    if fmt == "mp4":
+        return _export_video(talk, have, fmt, target / f"{talk.id}.mp4", log)
     if fmt == "pdf":
         return _export_pdf(talk, have, target / f"{talk.id}.pdf", log)
     base = ["uv", "run", "python", "-m", "manim_slides", "convert", "--folder", RENDERS, *have]
@@ -940,6 +964,7 @@ def export(talk: Talk, fmt="html", log=print) -> Path:
     # manim-slides writes paths with “\” on Windows; with “/” it also opens on Macs and phones.
     text = html.read_text("utf-8")
     html.write_text(text.replace(f"{talk.id}_assets\\", f"{talk.id}_assets/"), "utf-8")
+    import zipfile
     file = target / f"{talk.id}.zip"
     log("Compressing…")
     with zipfile.ZipFile(file, "w", zipfile.ZIP_STORED) as z:
@@ -950,10 +975,64 @@ def export(talk: Talk, fmt="html", log=print) -> Path:
     return file
 
 
+VIDEO_SIZES = {"480p": (854, 480), "720p": (1280, 720), "1080p": (1920, 1080)}
+GIF_WIDTH, GIF_FPS = 960, 15
+
+
+def _export_slide(talk: Talk, name: str, have: list[str], fmt: str, target: Path, log) -> Path:
+    if fmt not in ("mp4", "gif"):
+        raise RuntimeError("One slide exports as MP4 or GIF")
+    if name not in have:
+        raise RuntimeError(f"{name} is not rendered")
+    return _export_video(talk, [name], fmt, target / f"{name}.{fmt}", log)
+
+
+def _video_filter(talk: Talk, fmt: str) -> list[str]:
+    """What ffmpeg does to the frames. An MP4 has the resolution of the talk: a slide with a
+    different resolution gets that size too. A GIF is small and has its own colors."""
+    if fmt == "gif":
+        return ["-vf", f"fps={GIF_FPS},scale={GIF_WIDTH}:-2:flags=lanczos,split[a][b];"
+                       "[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5",
+                "-loop", "0"]
+    w, h = VIDEO_SIZES.get(talk.resolution, VIDEO_SIZES["1080p"])
+    return ["-vf", f"scale={w}:{h}:force_original_aspect_ratio=decrease,"
+                   f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-movflags", "+faststart", "-an"]
+
+
+def _video_list(talk: Talk, names: list[str], folder: Path) -> Path:
+    """The file that tells ffmpeg which videos to join, in order. A loop plays one time."""
+    videos = [p["video"] for name in names for p in parts(talk, name) if p["video"].exists()]
+    if not videos:
+        raise RuntimeError("Could not find the videos of the slides, render them again")
+    listing = folder / "videos.txt"
+    quoted = (v.resolve().as_posix().replace("'", "'\\''") for v in videos)
+    listing.write_text("".join(f"file '{v}'\n" for v in quoted), "utf-8")
+    return listing
+
+
+def _export_video(talk: Talk, names: list[str], fmt: str, file: Path, log) -> Path:
+    """One video with the slides in order (MP4), or a GIF of them."""
+    ff = shutil.which("ffmpeg")
+    if not ff:
+        raise RuntimeError("The video needs ffmpeg, install it and try again")
+    import tempfile
+    log(f"Joining the videos of {len(names)} slide{'s' if len(names) != 1 else ''}…")
+    with tempfile.TemporaryDirectory() as tmp:
+        cmd = [ff, "-v", "error", "-y", "-f", "concat", "-safe", "0",
+               "-i", str(_video_list(talk, names, Path(tmp))), *_video_filter(talk, fmt), str(file)]
+        code, lines = run(cmd, talk.pres, log)
+    if code != 0:
+        _fail(lines, 20, "the export failed", log)
+    log(f"Done: {file} ({file.stat().st_size / 1e6:.1f} MB)")
+    return file
+
+
 def _export_pdf(talk: Talk, names: list[str], file: Path, log) -> Path:
     """One page for each pause: the last frame of its video."""
     if not shutil.which("ffmpeg"):
         raise RuntimeError("The PDF needs ffmpeg, install it and try again")
+    import tempfile
     log("Taking the last frame of each pause…")
     pages = []
     with tempfile.TemporaryDirectory() as tmp:
@@ -1230,6 +1309,24 @@ def new_slide(talk: Talk, name: str, after: Slide | None) -> Slide:
     return next(s for s in read_plan(talk) if s.method == f"slide_{name}")
 
 
+def _copy_name(talk: Talk, s: Slide) -> str:
+    """A name for the copy of a slide that no slide has: x_copy, then x_copy_2, x_copy_3…"""
+    taken = {p.name for p in read_plan(talk)}
+    names = (f"{s.name}_copy" + (f"_{n}" if n > 1 else "") for n in range(1, 1000))
+    return next(n for n in names if n not in taken)
+
+
+def duplicate(talk: Talk, s: Slide, name: str | None = None) -> Slide:
+    """Makes a copy of a slide with a new name, registers it and places it after the slide. The
+    copy starts with the code of the slide, so a variation of a slide is a small change."""
+    if not s.active:
+        raise RuntimeError("Put the slide back in the talk before you duplicate it")
+    source = talk.pres / s.file
+    copy = new_slide(talk, name or _copy_name(talk, s), s)
+    (talk.pres / copy.file).write_text(_read(source), "utf-8", newline="")
+    return next(p for p in read_plan(talk) if p.method == copy.method)
+
+
 def move(talk: Talk, s: Slide, after: Slide | None) -> str:
     """Moves the call of `s` in main.py right after `after`, or to the start."""
     if after is not None and after.line == s.line:
@@ -1346,10 +1443,11 @@ def restore(talk: Talk, s: Slide) -> str:
 
 
 def to_recycle_bin(p: Path) -> bool:
-    """Sends a file to the Windows recycle bin (it can be recovered)."""
+    """Sends a file to the recycle bin (it can be recovered). On Linux, to the trash of the
+    desktop; without one the file stays where it is."""
     if os.name != "nt":
-        p.unlink()
-        return True
+        gio = shutil.which("gio")
+        return bool(gio) and subprocess.run([gio, "trash", str(p)], capture_output=True).returncode == 0
     import ctypes
     from ctypes import wintypes
 
@@ -1791,7 +1889,9 @@ class Jobs:
                 subprocess.run(["taskkill", "/T", "/F", "/PID", str(j["proc"].pid)],
                                capture_output=True)
             else:
-                j["proc"].kill()
+                import signal
+                with suppress(ProcessLookupError):
+                    os.killpg(j["proc"].pid, signal.SIGKILL)
 
     def _loop(self):
         while True:
@@ -1831,9 +1931,20 @@ def _open_in_editor(path: Path):
         _open(path)
 
 
-class Panel(BaseHTTPRequestHandler):
+class Panel:
+    """The panel's answers. panel_handler() joins it with BaseHTTPRequestHandler."""
+
     def log_message(self, *_):
         pass
+
+    def end_headers(self):
+        # No other page can show the panel inside a frame (and trick a click on its buttons), the
+        # browser never guesses the type of a file, and the page loads nothing from anywhere else.
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Content-Security-Policy", PANEL_POLICY)
+        super().end_headers()
 
     def _allowed(self) -> bool:
         """Only the panel's own page, on this computer. A web page open in the browser could send
@@ -1869,6 +1980,7 @@ class Panel(BaseHTTPRequestHandler):
             self.send_header("Content-Range", f"bytes {first}-{last}/{size}")
         else:
             self.send_response(200)
+        import mimetypes
         self.send_header("Content-Type", mimetypes.guess_type(p.name)[0] or "application/octet-stream")
         self.send_header("Content-Length", str(last - first + 1))
         self.send_header("Accept-Ranges", "bytes")
@@ -1939,6 +2051,18 @@ class Panel(BaseHTTPRequestHandler):
         return {"ok": True}
 
 
+# The panel's page carries its own script and style and talks only to this server.
+PANEL_POLICY = ("default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
+                "img-src 'self' data:; media-src 'self'; object-src 'none'; base-uri 'none'; "
+                "form-action 'none'; frame-ancestors 'none'")
+
+
+def panel_handler() -> type:
+    """The class that answers the panel's requests."""
+    from http.server import BaseHTTPRequestHandler
+    return type("PanelHandler", (Panel, BaseHTTPRequestHandler), {})
+
+
 def byte_range(header: str, size: int) -> tuple[int, int] | None:
     """(first, last) byte that a Range header asks for, or None without one. The caller refuses a
     range that starts after the end."""
@@ -1988,9 +2112,11 @@ def status_by_name(talk: Talk) -> dict[str, str]:
 
 def open_panel(port=PORT, browser=True):
     global JOBS
+    import webbrowser
+    from http.server import ThreadingHTTPServer
     url = f"http://127.0.0.1:{port}/"
     try:
-        server = ThreadingHTTPServer(("127.0.0.1", port), Panel)
+        server = ThreadingHTTPServer(("127.0.0.1", port), panel_handler())
     except OSError:
         print(f"The panel is already open at {url}")
         if browser:
@@ -2059,6 +2185,8 @@ def _talk_parser(talk: Talk, command: str) -> argparse.ArgumentParser:
     p.add_argument("--pending", action="store_true")
     p.add_argument("--all", action="store_true")
     p.add_argument("--pdf", action="store_true")
+    p.add_argument("--mp4", action="store_true", help="one video of the talk, or of one slide")
+    p.add_argument("--gif", action="store_true", help="a GIF of one slide")
     p.add_argument("--approve", action="store_true")
     p.add_argument("--clear", action="store_true")
     p.add_argument("--json", action="store_true")
@@ -2218,8 +2346,18 @@ def _cmd_present(talk, a, plan):
     present(talk, resolve(talk, plan, a.slides[:1])[0].name if a.slides else None)
 
 
+def _cmd_duplicate(talk, a, plan):
+    name = " ".join(a.slides if a.line is not None else a.slides[1:]) or None
+    s = duplicate(talk, _one(talk, a, plan), name)
+    if a.json:
+        return json.dumps({"name": s.name, "file": s.file, "pos": s.pos}, ensure_ascii=False)
+    return f"Created {s.name} at position {s.pos} ({s.file})"
+
+
 def _cmd_export(talk, a, plan):
-    export(talk, "pdf" if a.pdf else "html")
+    fmt = "pdf" if a.pdf else "mp4" if a.mp4 else "gif" if a.gif else "html"
+    only = resolve(talk, plan, a.slides[:1])[0].name if a.slides else None
+    export(talk, fmt, only=only)
 
 
 def _cmd_stills(talk, a, plan):
@@ -2253,6 +2391,7 @@ COMMANDS = {
     "new": _cmd_new,
     "move": _cmd_move,
     "rename": _cmd_rename,
+    "duplicate": _cmd_duplicate,
     "restore": _cmd_restore,
     "delete": lambda talk, a, plan: delete(talk, _one(talk, a, plan)),
     "resolution": _cmd_resolution,

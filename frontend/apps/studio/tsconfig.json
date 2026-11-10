@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The files of src/ are scripts, not modules: they share one scope and load in the order of
+    // their numbers (see index.html). The move to modules is on the roadmap.
+    "module": "none",
+    "moduleDetection": "legacy",
+    "ignoreDeprecations": "6.0",
+    "strict": false,
+    "noImplicitAny": false,
+    "rootDir": "../..",
+    "outDir": "dist/js"
+  },
+  "include": ["src/**/*.ts", "../../libs/**/*.ts"],
+  "exclude": ["../../libs/**/*.test.ts"]
+}

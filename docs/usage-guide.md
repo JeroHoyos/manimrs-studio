@@ -8,6 +8,26 @@
 | Left | The slides, in the order of the talk, each with its status. |
 | Center | The video of the selected slide, its resolution and its review. |
 | Right | The Claude chat. For more information, refer to [Claude chat](claude-chat.md). |
+| Bottom | The job that runs, with its progress and *Cancel*. *Log* shows the output of each job. |
+
+![The window, with a talk of three slides](images/window.png)
+
+Drag the line between the center and the chat to change the width of the chat. Push Ctrl and + or
+Ctrl and - to change the size of the contents.
+
+## Keys
+
+| Key | Result |
+| --- | --- |
+| Up arrow, Down arrow | Selects the slide before or the slide after. |
+| Page Up, Page Down | Moves ten slides in the list. |
+| Home, End | Selects the first slide or the last slide. |
+| Left arrow, Right arrow | Goes to the pause before or to the pause after. |
+| Space | Plays the video or stops it. |
+| F2 | Changes the name of the slide. |
+| Esc | Closes a menu or the log. In the chat, Esc stops Claude. |
+
+The keys work when the cursor is not in a text box and not in the chat.
 
 ## Make the slides with Claude
 
@@ -26,9 +46,30 @@ To show Claude an image with the note, click *Attach image*. You can also paste 
 in *Review*. The images go to Claude with the note. The app keeps the images that you did not send
 only until you close it.
 
-The first render of a talk installs its Python packages. This takes some minutes. After that, the
-app renders only the slides that changed. It is not necessary to comment out slides in `main.py` to render
-faster.
+## Mark on the slide
+
+To show what you want to change, mark it on the slide. The marks go to Claude as an image.
+
+1. Stop the video at the moment that you want to mark.
+2. Click *Mark on the slide* in *Review*.
+3. Select a tool and mark the frame.
+4. Click *Add to the note*.
+
+| Tool | Procedure | Result |
+| --- | --- | --- |
+| *Point* | Click a part of the slide. Then write what to change there. | A point with a number. The text goes into the note with that number. |
+| *Draw* | Drag on the slide. | A line, for example around an element. |
+| *Move* | Drag from an element to its new position. | An arrow. |
+
+*Undo* or Ctrl+Z removes the last mark. *Cancel* or Esc closes the marks and adds nothing.
+
+![Marks on a slide: a point, a circle and an arrow](images/mark.png)
+
+The app keeps the text of a note that you did not save or send, until you close the app.
+
+![A slide with a saved note and the button Send 1 change to Claude at the top](images/review.png)
+
+The first render of a talk installs its Python packages. This takes some minutes.
 
 ## The status of a slide
 
@@ -50,6 +91,8 @@ review goes back to *to review*.
 ## Change the slides of a talk
 
 All these actions are in the *⋯* menu of the slide and in the context menu of the list.
+
+![The menu of a slide: Rename, Move up, Move down, New slide after this one and Delete](images/slide-menu.png)
 
 | Action | Procedure | Result |
 | --- | --- | --- |
@@ -92,6 +135,10 @@ does not show.
 | --- | --- | --- |
 | HTML folder (.zip) | `diapos/exported/<talk>.zip` in the folder of the talk. | Unzip it on the other device and open `<talk>.html` with Chrome, Edge, Firefox or Safari. A connection to the internet is not necessary. |
 | PDF (.pdf) | `diapos/exported/<talk>.pdf` | Each pause is a page. The page shows the last frame of the pause. A loop gets no page if a pause comes before it in its slide, because the loop ends on that page. The PDF export needs FFmpeg. |
+| Video (.mp4) | `diapos/exported/<talk>.mp4` | All the slides in one video, at the resolution of the talk. The video has no pauses. |
+| One slide (.mp4, .gif) | `diapos/exported/<slide>.mp4` or `.gif` | Open the menu of the slide and select *Export as video* or *Export as GIF*. |
+
+![The Export menu](images/export.png)
 
 The export has only the slides that have a video. Render all the slides at 1080p before you export.
 
